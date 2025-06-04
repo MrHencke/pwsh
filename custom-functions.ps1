@@ -1,30 +1,5 @@
 # Custom utility funcs
 
-function localpack-children {
-    param(
-        [string]$StartPath = ".",
-        [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
-        [string]$Configuration = "Release",
-        [string]$VersionSuffix = "-local",
-        [bool]$Clean = $true,
-        [string]$Version = $null,
-        [switch]$Install
-    )
-    
-    # Find all .csproj files recursively from the start path
-    $csprojFiles = Get-ChildItem -Path $StartPath -Recurse -Filter *.csproj
-    
-    if ($csprojFiles.Count -eq 0) {
-        Write-Error "No .csproj files found in the specified path: $StartPath"
-        return
-    }
-    
-    foreach ($csprojFile in $csprojFiles) {
-        Write-Output "Processing $($csprojFile.FullName)"
-        localpack -ProjectPath $csprojFile.DirectoryName -OutputDirectory $OutputDirectory -Configuration $Configuration -VersionSuffix $VersionSuffix -Clean $Clean -Version $Version -Install:$Install
-    }
-}
-
 function localpack {
     param(
         [string]$ProjectPath = ".",
@@ -114,6 +89,35 @@ function localpack {
     
     Write-Output "Packing `"$projectName $Version$VersionSuffix`" to $OutputDirectory"
     dotnet pack $ProjectPath -o $OutputDirectory -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --configuration $Configuration $versionArg
+}
+
+function localpack-children {
+    param(
+        [string]$StartPath = ".",
+        [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
+        [string]$Configuration = "Release",
+        [string]$VersionSuffix = "-local",
+        [bool]$Clean = $true,
+        [string]$Version = $null,
+        [switch]$Install
+    )
+    
+    # Find all .csproj files recursively from the start path
+    $csprojFiles = Get-ChildItem -Path $StartPath -Recurse -Filter *.csproj
+    
+    if ($csprojFiles.Count -eq 0) {
+        Write-Error "No .csproj files found in the specified path: $StartPath"
+        return
+    }
+    
+
+    $customFunctionsPath = (Join-Path (Split-Path $PROFILE -Parent) "custom-functions.ps1")
+
+    $csprojFiles | ForEach-Object -Parallel {
+        . $using:customFunctionsPath
+        Write-Output "Processing $($_.FullName)"
+        localpack -ProjectPath $_.DirectoryName -OutputDirectory $using:OutputDirectory -Configuration $using:Configuration -VersionSuffix $using:VersionSuffix -Clean $using:Clean -Version $using:Version -Install:$using:Install
+    } -ThrottleLimit 4
 }
 
 function which ($command) {
