@@ -142,7 +142,11 @@ Set-Alias -Name 'reload' -Value 'Restart-PowerShell'
 function Remove-BinObjFolders {
     # Get the current working directory
     $currentDir = Get-Location
-
+    if($currentDir -eq $HOME)
+    {
+        Write-Error "We have already tried this one, dont do that again!"
+        return
+    }
     # Recursively search for "bin" and "obj" folders and remove them
     Get-ChildItem -Path $currentDir -Recurse -Directory | Where-Object { $_.Name -in @('bin', 'obj') } | Remove-Item -Recurse -Force
 }
