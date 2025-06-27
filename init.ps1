@@ -60,3 +60,11 @@ if (-not (Test-Path $FlagFile))
     New-Item -Path $FlagFile -ItemType File -Force | Out-Null
     Write-Host "`nInitialization complete. Flag saved at $FlagFile`n"
 } 
+
+$starshipSource = Join-Path (Split-Path -Parent $PROFILE) "starship.toml"
+$starshipDestination = "$env:USERPROFILE\.config\starship.toml"
+
+if (-Not (Test-Path $starshipDestination)) {
+    Write-Output "Linking starship.toml to $starshipDestination"
+    Set-Link -From $starshipSource -To $starshipDestination
+}
