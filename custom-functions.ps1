@@ -1,6 +1,7 @@
 # Custom utility funcs
 
-function localpack {
+function localpack 
+{
     param(
         [string]$ProjectPath = ".",
         [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
@@ -91,7 +92,8 @@ function localpack {
     dotnet pack $ProjectPath -o $OutputDirectory -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --configuration $Configuration $versionArg
 }
 
-function localpack-children {
+function localpack-children 
+{
     param(
         [string]$StartPath = ".",
         [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
@@ -120,12 +122,14 @@ function localpack-children {
     } -ThrottleLimit 4
 }
 
-function which ($command) {
+function which ($command) 
+{
     Get-Command -Name $command -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty Path -ErrorAction SilentlyContinue
 }
 
-Function gig {
+Function gig 
+{
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$list
@@ -134,12 +138,14 @@ Function gig {
     Invoke-WebRequest -Uri "https://www.toptal.com/developers/gitignore/api/$params" | Select-Object -ExpandProperty content | Out-File -FilePath $(Join-Path -path $pwd -ChildPath ".gitignore") -Encoding ascii
 }
 
-function Restart-PowerShell {
+function Restart-PowerShell 
+{
     Invoke-Command { & "pwsh.exe" } -NoNewScope 
 }
 Set-Alias -Name 'reload' -Value 'Restart-PowerShell'
 
-function Remove-BinObjFolders {
+function Remove-BinObjFolders 
+{
     # Get the current working directory
     $currentDir = Get-Location
     if($currentDir -eq $HOME)
@@ -152,7 +158,8 @@ function Remove-BinObjFolders {
 }
 Set-Alias -Name 'clean' -Value 'Remove-BinObjFolders'
 
-function Remove-BinObjFolders-Params {
+function Remove-BinObjFolders-Params 
+{
     param(
         [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
         [string[]]$Folders
@@ -165,7 +172,8 @@ function Remove-BinObjFolders-Params {
 Set-Alias -Name 'cleanDir' -Value 'Remove-BinObjFolders-Params'
 
 
-function Set-Link {
+function Set-Link 
+{
     param(
         [string]$from,
         [string]$to
@@ -178,7 +186,8 @@ Set-Alias -Name 'ln' -Value 'Set-Link'
 Set-Alias -Name 'unfuckwinget' -Value 'Repair-WinGetPackageManager'
 Set-Alias -Name 'sudo' -Value 'gsudo'
 
-function Get-String-Value-Line {
+function Get-String-Value-Line 
+{
     param (
         [string]$pattern,
         [switch]$ignoreCase
@@ -196,7 +205,8 @@ function Get-String-Value-Line {
 
 Set-Alias -Name 'grep' -Value 'Get-String-Value-Line'
 
-function Convert-LineEndings {
+function Convert-LineEndings 
+{
     [CmdletBinding()]
     param (
         [string]$Path = (Get-Location),
@@ -228,14 +238,16 @@ function Convert-LineEndings {
     }
 }
 
-function ToLF {
+function ToLF 
+{
     param (
         [string]$Path = (Get-Location) 
     )
     Convert-LineEndings -Path $Path -ToLF:$true
 }
 
-function ToCRLF {
+function ToCRLF 
+{
     param (
         [string]$Path = (Get-Location) 
     )
