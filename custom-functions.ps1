@@ -195,3 +195,49 @@ function Get-String-Value-Line {
 }
 
 Set-Alias -Name 'grep' -Value 'Get-String-Value-Line'
+
+function Convert-LineEndings {
+    [CmdletBinding()]
+    param (
+        [string]$Path = (Get-Location),
+        [bool]$ToLF = $true
+    )
+
+    Write-Host "Processing files in: $Path"
+    Write-Host "Converting to: $([string]::Join('', $(if ($ToLF) { 'LF (`\n`)' } else { 'CRLF (`\r\n`)' })))"
+
+    Get-ChildItem -Path $Path -Recurse -File | ForEach-Object {
+        $filePath = $_.FullName
+        try {
+            $content = Get-Content -Path $filePath -Raw
+
+            if ($ToLF) {
+                # Convert CRLF to LF
+                $newContent = $content -replace "`r`n", "`n"
+            } else {
+                # Normalize to LF first, then convert LF to CRLF
+                $normalized = $content -replace "`r`n", "`n"
+                $newContent = $normalized -replace "`n", "`r`n"
+            }
+
+            Set-Content -Path $filePath -Value $newContent -NoNewline
+            Write-Host "Converted: $filePath"
+        } catch {
+            Write-Warning "Failed to process: $filePath. Error: $_"
+        }
+    }
+}
+
+function ToLF {
+    param (
+        [string]$Path = (Get-Location) 
+    )
+    Convert-LineEndings -Path $Path -ToLF:$true
+}
+
+function ToCRLF {
+    param (
+        [string]$Path = (Get-Location) 
+    )
+    Convert-LineEndings -Path $Path -ToLF:$false
+}
