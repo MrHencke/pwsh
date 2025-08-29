@@ -1,5 +1,4 @@
-function Ensure-Winget 
-{
+function Ensure-Winget {
     param (
         [Parameter(Mandatory = $true)]
         [string]$PackageId,
@@ -19,13 +18,13 @@ function Ensure-Winget
     if (-not $isInstalled) {
         Write-Host "$pkgName is not installed. Installing..."
         winget install --id $PackageId -e --accept-source-agreements --accept-package-agreements
-    } else {
+    }
+    else {
         Write-Host "$pkgName is already installed."
     }
 }
 
-function Ensure-Module 
-{
+function Ensure-Module {
     param (
         [Parameter(Mandatory = $true)]
         [string]$ModuleName
@@ -33,13 +32,13 @@ function Ensure-Module
     if (-not (Get-Module -ListAvailable -Name $ModuleName)) {
         Write-Host "Installing PowerShell module: $ModuleName"
         Install-Module -Name $ModuleName -Force -Scope CurrentUser
-    } else {
+    }
+    else {
         Write-Host "$ModuleName module is already installed."
     }
 }
 
-function Init
-{
+function Init {
     Write-Host "`n--- Initializing Packages ---`n"
 
     Ensure-Winget -PackageId "ajeetdsouza.zoxide" -DisplayName "Zoxide"
@@ -50,12 +49,12 @@ function Init
 
     Ensure-Module -ModuleName "PSReadLine"
     Ensure-Module -ModuleName "PSFzf"
+    Ensure-Module -ModuleName "CompletionPredictor"
 }
 
 $FlagFile = "$env:LOCALAPPDATA\init_env_flag"
 
-if (-not (Test-Path $FlagFile)) 
-{
+if (-not (Test-Path $FlagFile)) {
     Init
     New-Item -Path $FlagFile -ItemType File -Force | Out-Null
     Write-Host "`nInitialization complete. Flag saved at $FlagFile`n"
