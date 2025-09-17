@@ -1,7 +1,6 @@
 # Custom utility funcs
 
-function localpack 
-{
+function localpack {
     param(
         [string]$ProjectPath = ".",
         [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
@@ -92,8 +91,7 @@ function localpack
     dotnet pack $ProjectPath -o $OutputDirectory -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --configuration $Configuration $versionArg
 }
 
-function localpack-children 
-{
+function localpack-children {
     param(
         [string]$StartPath = ".",
         [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
@@ -122,14 +120,12 @@ function localpack-children
     } -ThrottleLimit 4
 }
 
-function which ($command) 
-{
+function which ($command) {
     Get-Command -Name $command -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty Path -ErrorAction SilentlyContinue
 }
 
-Function gig 
-{
+Function gig {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$list
@@ -138,18 +134,15 @@ Function gig
     Invoke-WebRequest -Uri "https://www.toptal.com/developers/gitignore/api/$params" | Select-Object -ExpandProperty content | Out-File -FilePath $(Join-Path -path $pwd -ChildPath ".gitignore") -Encoding ascii
 }
 
-function Restart-PowerShell 
-{
+function Restart-PowerShell {
     Invoke-Command { & "pwsh.exe" } -NoNewScope 
 }
 Set-Alias -Name 'reload' -Value 'Restart-PowerShell'
 
-function Remove-BinObjFolders 
-{
+function Remove-BinObjFolders {
     # Get the current working directory
     $currentDir = Get-Location
-    if($currentDir -eq $HOME)
-    {
+    if ($currentDir -eq $HOME) {
         Write-Error "We have already tried this one, dont do that again!"
         return
     }
@@ -158,8 +151,7 @@ function Remove-BinObjFolders
 }
 Set-Alias -Name 'clean' -Value 'Remove-BinObjFolders'
 
-function Remove-BinObjFolders-Params 
-{
+function Remove-BinObjFolders-Params {
     param(
         [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
         [string[]]$Folders
@@ -172,8 +164,7 @@ function Remove-BinObjFolders-Params
 Set-Alias -Name 'cleanDir' -Value 'Remove-BinObjFolders-Params'
 
 
-function Set-Link 
-{
+function Set-Link {
     param(
         [string]$from,
         [string]$to
@@ -186,8 +177,7 @@ Set-Alias -Name 'ln' -Value 'Set-Link'
 Set-Alias -Name 'unfuckwinget' -Value 'Repair-WinGetPackageManager'
 Set-Alias -Name 'sudo' -Value 'gsudo'
 
-function Get-String-Value-Line 
-{
+function Get-String-Value-Line {
     param (
         [string]$pattern,
         [switch]$ignoreCase
@@ -205,8 +195,7 @@ function Get-String-Value-Line
 
 Set-Alias -Name 'grep' -Value 'Get-String-Value-Line'
 
-function Convert-LineEndings 
-{
+function Convert-LineEndings {
     [CmdletBinding()]
     param (
         [string]$Path = (Get-Location),
@@ -224,7 +213,8 @@ function Convert-LineEndings
             if ($ToLF) {
                 # Convert CRLF to LF
                 $newContent = $content -replace "`r`n", "`n"
-            } else {
+            }
+            else {
                 # Normalize to LF first, then convert LF to CRLF
                 $normalized = $content -replace "`r`n", "`n"
                 $newContent = $normalized -replace "`n", "`r`n"
@@ -232,24 +222,144 @@ function Convert-LineEndings
 
             Set-Content -Path $filePath -Value $newContent -NoNewline
             Write-Host "Converted: $filePath"
-        } catch {
+        }
+        catch {
             Write-Warning "Failed to process: $filePath. Error: $_"
         }
     }
 }
 
-function ToLF 
-{
+function ToLF {
     param (
         [string]$Path = (Get-Location) 
     )
     Convert-LineEndings -Path $Path -ToLF:$true
 }
 
-function ToCRLF 
-{
+function ToCRLF {
     param (
         [string]$Path = (Get-Location) 
     )
     Convert-LineEndings -Path $Path -ToLF:$false
+}
+
+
+function Show-PowerStateEvents {
+    # Shows power state events for a specified date
+    # Was bootstrapped by Copilot, then fine tuned manually
+    param (
+        [int]$DaysBack = 7,
+        [bool]$OnlyLid = $true
+    )
+
+    # Start from midnight of the day DaysBack ago
+    $startDate = (Get-Date).Date.AddDays(-$DaysBack)
+
+    # Fetch Kernel-Power events
+    $events = Get-WinEvent -FilterHashtable @{
+        LogName      = 'System'
+        ProviderName = 'Microsoft-Windows-Kernel-Power'
+        StartTime    = $startDate
+    } | Select-Object TimeCreated, Id, Message
+
+    if (-not $events) {
+        Write-Host "No Kernel-Power events found since $startDate."
+        return
+    }
+
+    # Map event IDs and extract reason text
+    $mappedEvents = $events | ForEach-Object {
+        $eventType = switch ($_.Id) {
+            40 { "Driver blocked power transition" }
+            41 { "Unexpected shutdown or reboot" }
+            42 { "System entering sleep" }
+            105 { "Power source change" }
+            107 { "System resumed from sleep" }
+            172 { "Connectivity state in standby" }
+            506 { "Entering Modern Standby" }
+            507 { "Exiting Modern Standby" }
+            566 { "Session transition" }
+            default {
+                if ($_.Id) { "Event ID $($_.Id)" } else { "Unknown Event" }
+            }
+        }
+
+        # Extract reason from message if available
+        $reason = if ($_.Message -match "Reason: (.+?)(\r|\n|$)") {
+            $matches[1].Trim()
+        }
+        elseif ($_.Message -match "Reason (.+?)(\r|\n|$)") {
+            $matches[1].Trim()
+        }
+        else {
+            $null
+        }
+
+        [PSCustomObject]@{
+            DateTime  = $_.TimeCreated
+            EventType = $eventType
+            Reason    = $reason
+        }
+    }
+
+    # Apply lid filter if enabled
+    if ($OnlyLid) {
+        $mappedEvents = $mappedEvents | Where-Object {
+            $_.Reason -and $_.Reason -match 'lid'
+        }
+    }
+
+    # Remove consecutive duplicates (same EventType and Reason)
+    $filteredEvents = @()
+    $lastEvent = $null
+    foreach ($e in $mappedEvents | Sort-Object DateTime) {
+        if ($lastEvent -and
+            $e.EventType -eq $lastEvent.EventType -and
+            $e.Reason -eq $lastEvent.Reason) {
+            continue
+        }
+        $filteredEvents += $e
+        $lastEvent = $e
+    }
+
+    # Get unique dates only (yyyy-MM-dd)
+    $uniqueDates = $filteredEvents.DateTime |
+    ForEach-Object { $_.ToString("yyyy-MM-dd") } |
+    Sort-Object -Unique
+
+    if (-not $uniqueDates) {
+        Write-Host "No events found matching the filter criteria."
+        return
+    }
+
+    # Display dropdown in terminal
+    Write-Host "`nAvailable Dates:"
+    for ($i = 0; $i -lt $uniqueDates.Count; $i++) {
+        Write-Host "${i}: $($uniqueDates[$i])"
+    }
+
+    # Prompt user to select a date
+    $selection = Read-Host "`nEnter the number of the date you want to view (press Enter for latest date)"
+    if ($selection -eq "") {
+        $selectedDate = $uniqueDates[-1]  # Latest date
+        Write-Host "`nNo selection made. Showing latest date: $selectedDate.`n"
+    }
+    elseif ($selection -match '^\d+$' -and [int]$selection -ge 0 -and [int]$selection -lt $uniqueDates.Count) {
+        $selectedDate = $uniqueDates[$selection]
+        Write-Host "`nPower State Events for ${selectedDate}:`n"
+    }
+    else {
+        Write-Host "Invalid selection. Please run the function again."
+        return
+    }
+
+    # Display filtered events
+    $final = $filteredEvents | Where-Object { $_.DateTime.ToString("yyyy-MM-dd") -eq $selectedDate }
+    foreach ($item in $final) {
+        $line = "$($item.DateTime.ToString("yyyy-MM-dd HH:mm:ss")) - $($item.EventType)"
+        if ($item.Reason) {
+            $line += " (Reason: $($item.Reason))"
+        }
+        Write-Host $line
+    }
 }
