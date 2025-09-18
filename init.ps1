@@ -50,6 +50,7 @@ function Init {
     Ensure-Module -ModuleName "PSReadLine"
     Ensure-Module -ModuleName "PSFzf"
     Ensure-Module -ModuleName "CompletionPredictor"
+    Ensure-Module -ModuleName "Microsoft.WinGet.CommandNotFound"
 }
 
 $FlagFile = "$env:LOCALAPPDATA\init_env_flag"
