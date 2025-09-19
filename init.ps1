@@ -46,6 +46,9 @@ function Init {
     Ensure-Winget -PackageId "Schniz.fnm" -DisplayName "FNM (Node Version Manager)"
     Ensure-Winget -PackageId "gerardog.gsudo" -DisplayName "gsudo (Elevated Command Execution)"
     Ensure-Winget -PackageId "fzf" -DisplayName "FZF (Command-line Fuzzy Finder)"
+    Ensure-Winget -PackageId "Derailed.k9s" -DisplayName "K9s (Kubernetes CLI)"
+    Ensure-Winget -PackageId "Neovim.Neovim" -DisplayName "Neovim"
+    ensure-Winget -PackageId "Git.Git" -DisplayName "Git"
 
     Ensure-Module -ModuleName "PSReadLine"
     Ensure-Module -ModuleName "PSFzf"
