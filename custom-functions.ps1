@@ -363,3 +363,8 @@ function Show-PowerStateEvents {
         Write-Host $line
     }
 }
+
+function gitlog {
+    # Quick shortcut to pretty print git commits on current branch that have been made after diverging from master
+    git log master..HEAD --oneline --pretty=format:"- %s"
+}
