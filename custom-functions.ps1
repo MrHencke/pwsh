@@ -368,3 +368,14 @@ function gitlog {
     # Quick shortcut to pretty print git commits on current branch that have been made after diverging from master
     git log master..HEAD --oneline --pretty=format:"- %s"
 }
+
+function psqlad {
+    $env:PGPASSWORD = az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv
+
+    if (-not ($args -match '^-U$') && -not ($args -match '^--username$') && $null -ne $PsqlUser) {
+        psql (@('-U', $PsqlUser) + $args)
+    }
+    else {
+        psql $args
+    }
+}

@@ -1,6 +1,16 @@
+$scripts = @(
+    "init.ps1"
+    "custom-functions.ps1"
+    "env.ps1",
+    "k9s.ps1"
+)
 
-. "$PSScriptRoot\init.ps1"
-. "$PSScriptRoot\custom-functions.ps1"
+foreach ($scriptName in $scripts) {
+    $scriptPath = Join-Path $PSScriptRoot $scriptName
+    if (Test-Path $scriptPath) {
+        . $scriptPath
+    }
+}
 
 $generatedScriptFolder = Join-Path $PSScriptRoot "generated"
 $scriptFiles = Get-ChildItem -Path $generatedScriptFolder -Filter *.ps1
@@ -26,3 +36,6 @@ Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+f' -PSReadlineChordReverseHistory
 
 # Winget notfound helper
 Import-Module -Name Microsoft.WinGet.CommandNotFound
+
+# Zoxide
+Invoke-Expression (& { (zoxide init --cmd cd powershell | Out-String) })
