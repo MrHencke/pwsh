@@ -1,0 +1,1 @@
+This is my personal powershell profile, filled with random utility functions and a riced starship prompt.
