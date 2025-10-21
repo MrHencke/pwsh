@@ -54,6 +54,9 @@ function Init {
     Ensure-Module -ModuleName "PSFzf"
     Ensure-Module -ModuleName "CompletionPredictor"
     Ensure-Module -ModuleName "Microsoft.WinGet.CommandNotFound"
+
+    kubectl completion powershell | Out-String > $profile/../generated/kubectl-completions.ps1
+    rustup completions powershell | Out-String > $profile/../generated/rustup-completions.ps1
 }
 
 $FlagFile = "$env:LOCALAPPDATA\init_env_flag"

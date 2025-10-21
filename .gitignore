@@ -3,3 +3,5 @@ Scripts
 **.old.**
 env.ps1
 k9s.ps1
+generated/**
+!generated/dotnet-completions.ps1
