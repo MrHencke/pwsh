@@ -50,6 +50,7 @@ function Init {
     Ensure-Winget -PackageId "Neovim.Neovim" -DisplayName "Neovim"
     ensure-Winget -PackageId "Git.Git" -DisplayName "Git"
     ensure-Winget -PackageId "aristocratos.btop4win" -DisplayName "btop"
+    ensure-Winget -PackageId "RedHat.Podman" -DisplayName "Podman"
 
     Ensure-Module -ModuleName "PSReadLine"
     Ensure-Module -ModuleName "PSFzf"
