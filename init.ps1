@@ -49,6 +49,7 @@ function Init {
     Ensure-Winget -PackageId "Derailed.k9s" -DisplayName "K9s (Kubernetes CLI)"
     Ensure-Winget -PackageId "Neovim.Neovim" -DisplayName "Neovim"
     ensure-Winget -PackageId "Git.Git" -DisplayName "Git"
+    ensure-Winget -PackageId "aristocratos.btop4win" -DisplayName "btop"
 
     Ensure-Module -ModuleName "PSReadLine"
     Ensure-Module -ModuleName "PSFzf"
