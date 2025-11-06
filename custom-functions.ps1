@@ -379,3 +379,49 @@ function psqlad {
         psql $args
     }
 }
+
+# Create development HTTPS certificates for ASP.NET Core projects in the same manner as visual studio does
+function Create-DevCerts {
+    param(
+        [string]$ProjectsRoot = "src"
+    )
+    $certsCreated = 0
+
+    $certFolder = Join-Path $env:APPDATA "ASP.NET\Https"
+    if (-not (Test-Path $certFolder)) {
+        New-Item -ItemType Directory -Path $certFolder | Out-Null
+    }
+
+    $projects = Get-ChildItem -Path $ProjectsRoot -Recurse -Filter "*.csproj"
+    foreach ($project in $projects) {
+        [xml]$projXml = Get-Content $project.FullName
+        $sdkAttr = $projXml.Project.Sdk
+
+        if ($sdkAttr -ne "Microsoft.NET.Sdk.Web") {
+            continue
+        }
+
+        $projectName = [System.IO.Path]::GetFileNameWithoutExtension($project.FullName)
+        $certPath = Join-Path $certFolder "$projectName.pfx"
+
+        if (Test-Path $certPath) {
+            continue
+        }
+
+        $password = [guid]::NewGuid().ToString()
+
+        dotnet dev-certs https -ep $certPath -p $password | Out-Null
+
+        $hasUserSecrets = Select-String -Path $project.FullName -Pattern "<UserSecretsId>" -Quiet
+        if (-not $hasUserSecrets) {
+            dotnet user-secrets init --project $project.FullName | Out-Null
+        }
+
+        dotnet user-secrets set "Kestrel:Certificates:Development:Password" $password --project $project.FullName | Out-Null
+
+        Write-Host "Certificate created and user secret set successfully for $projectName." -ForegroundColor Yellow
+        $certsCreated++
+    }
+
+    Write-Host "`n Done! Checked $($projects.Count) projects, created $certsCreated new certificates."
+}
