@@ -12,8 +12,7 @@ function Ensure-Winget {
     }
 
     $pkgName = if ($DisplayName) { $DisplayName } else { $PackageId }
-
-    $isInstalled = winget list --id $PackageId 2>&1 | Where-Object { $_ -notmatch "No installed package found" }
+    $isInstalled = (winget list --id $PackageId 2>$null) -match $PackageId
 
     if (-not $isInstalled) {
         Write-Host "$pkgName is not installed. Installing..."
@@ -29,7 +28,8 @@ function Ensure-Module {
         [Parameter(Mandatory = $true)]
         [string]$ModuleName
     )
-    if (-not (Get-Module -ListAvailable -Name $ModuleName)) {
+    $moduleIsInstalled = [bool](Get-Module -ListAvailable -Name $ModuleName)
+    if (-not $moduleIsInstalled) {
         Write-Host "Installing PowerShell module: $ModuleName"
         Install-Module -Name $ModuleName -Force -Scope CurrentUser
     }
@@ -59,8 +59,12 @@ function Init {
     Ensure-Module -ModuleName "CompletionPredictor"
     Ensure-Module -ModuleName "Microsoft.WinGet.CommandNotFound"
 
-    kubectl completion powershell | Out-String > $profile/../generated/kubectl-completions.ps1
-    rustup completions powershell | Out-String > $profile/../generated/rustup-completions.ps1
+    if (Get-Command "kubectl" -ErrorAction SilentlyContinue) {
+        kubectl completion powershell | Out-String > $profile/../generated/kubectl-completions.ps1
+    }
+    if (Get-Command "rustup" -ErrorAction SilentlyContinue) {
+        rustup completions powershell | Out-String > $profile/../generated/rustup-completions.ps1
+    }
 }
 
 $FlagFile = "$env:LOCALAPPDATA\init_env_flag"

@@ -1,8 +1,8 @@
 $scripts = @(
-    "init.ps1"
-    "custom-functions.ps1"
     "env.ps1",
-    "k9s.ps1"
+    "custom-functions.ps1",
+    "k9s.ps1",
+    "init.ps1"
 )
 
 foreach ($scriptName in $scripts) {
