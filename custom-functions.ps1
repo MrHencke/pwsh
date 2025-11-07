@@ -1,6 +1,7 @@
 # Custom utility funcs
 
 function localpack {
+    [CmdletBinding()]
     param(
         [string]$ProjectPath = ".",
         [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
@@ -92,6 +93,7 @@ function localpack {
 }
 
 function localpack-children {
+    [CmdletBinding()]
     param(
         [string]$StartPath = ".",
         [string]$OutputDirectory = "$env:USERPROFILE\LocalNugets",
@@ -247,6 +249,7 @@ function ToCRLF {
 function Show-PowerStateEvents {
     # Shows power state events for a specified date
     # Was bootstrapped by Copilot, then fine tuned manually
+    [CmdletBinding()]
     param (
         [int]$DaysBack = 7,
         [bool]$OnlyLid = $true
@@ -380,11 +383,30 @@ function psqlad {
     }
 }
 
+function Write-Host-Padded {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string] $Msg
+    )
+
+    $width = [Console]::WindowWidth
+    $Msg = $Msg.Substring(0, [Math]::Min($Msg.Length, $width - 1))
+    $paddedMsg = ("`r{0}" -f $Msg.PadRight($width))
+
+    Write-Host $paddedMsg -NoNewline
+}
+
 # Create development HTTPS certificates for ASP.NET Core projects in the same manner as visual studio does
 function Create-DevCerts {
+    [CmdletBinding()]
     param(
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
         [string]$ProjectsRoot = "src"
     )
+
+    $processedCount = 0
     $certsCreated = 0
     $secretName = "Kestrel:Certificates:Development:Password"
 
@@ -397,12 +419,14 @@ function Create-DevCerts {
     foreach ($project in $projects) {
         [xml]$projXml = Get-Content $project.FullName
         $sdkAttr = $projXml.Project.Sdk
-
+        
         if ($sdkAttr -ne "Microsoft.NET.Sdk.Web") {
             continue
         }
-
+        
+        $processedCount++
         $projectName = [System.IO.Path]::GetFileNameWithoutExtension($project.FullName)
+        Write-Host-Padded "Checking project: $projectName"
         $certPath = Join-Path $certFolder "$projectName.pfx"
 
         $hasUserSecrets = Select-String -Path $project.FullName -Pattern "<UserSecretsId>" -Quiet
@@ -444,20 +468,17 @@ function Create-DevCerts {
             dotnet dev-certs https -ep $certPath -p $password | Out-Null
             dotnet user-secrets set $secretName $password --project $project.FullName | Out-Null
 
-            Write-Host "[" -NoNewline
+            Write-Host "`r[" -NoNewline
             Write-Host $projectName -ForegroundColor Green -NoNewline
             Write-Host "] Created certificate and kestrel password secret"
             $certsCreated++
         }
     }
-    Write-Host "`n Done! Checked $($projects.Count) projects, created $certsCreated new certificates."
+    Write-Host-Padded "Done! Checked $processedCount candidate projects, created $certsCreated new certificates."
 }
 
 # Fetches updates and reloads profile
 function Update-Profile {
-    param(
-        [switch]$Force
-    )
     $profileFolder = Split-Path $PROFILE
     Push-Location $profileFolder
 
