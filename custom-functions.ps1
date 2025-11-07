@@ -452,3 +452,28 @@ function Create-DevCerts {
     }
     Write-Host "`n Done! Checked $($projects.Count) projects, created $certsCreated new certificates."
 }
+
+# Fetches updates and reloads profile
+function Update-Profile {
+    param(
+        [switch]$Force
+    )
+    $profileFolder = Split-Path $PROFILE
+    Push-Location $profileFolder
+
+    $pullResult = git pull
+    if ($pullResult -notmatch "Already up to date") {
+        Write-Host "Update complete. Reloading."
+        Pop-Location
+        Invoke-Command { & "pwsh.exe" } -NoNewScope
+    }
+    else {
+        Write-Host "No changes."
+        Pop-Location
+    }
+}
+
+function Reset-Profile {
+    git fetch | Out-Null
+    git reset --hard origin/master
+}
