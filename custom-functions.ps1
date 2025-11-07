@@ -386,6 +386,7 @@ function Create-DevCerts {
         [string]$ProjectsRoot = "src"
     )
     $certsCreated = 0
+    $secretName = "Kestrel:Certificates:Development:Password"
 
     $certFolder = Join-Path $env:APPDATA "ASP.NET\Https"
     if (-not (Test-Path $certFolder)) {
@@ -404,24 +405,50 @@ function Create-DevCerts {
         $projectName = [System.IO.Path]::GetFileNameWithoutExtension($project.FullName)
         $certPath = Join-Path $certFolder "$projectName.pfx"
 
-        if (Test-Path $certPath) {
-            continue
-        }
-
-        $password = [guid]::NewGuid().ToString()
-
-        dotnet dev-certs https -ep $certPath -p $password | Out-Null
-
         $hasUserSecrets = Select-String -Path $project.FullName -Pattern "<UserSecretsId>" -Quiet
         if (-not $hasUserSecrets) {
             dotnet user-secrets init --project $project.FullName | Out-Null
         }
 
-        dotnet user-secrets set "Kestrel:Certificates:Development:Password" $password --project $project.FullName | Out-Null
+        $secretLine = dotnet user-secrets list --project $project.FullName |
+        Select-String -Pattern ([regex]::Escape($secretName))
+        $secretValue = $null
+        if ($secretLine) {
+            $secretValue = ($secretLine -split "=", 2)[1].Trim()
+        }
 
-        Write-Host "Certificate created and user secret set successfully for $projectName." -ForegroundColor Yellow
-        $certsCreated++
+        $certExists = Test-Path $certPath
+        $secretExists = [string]::IsNullOrWhiteSpace($secretValue) -eq $false
+
+        $certIsValid = $false
+        if ($certExists -and $secretExists) {
+            try {
+                $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath, $secretValue)
+                $certIsValid = $true
+            }
+            catch {
+                $certIsValid = $false
+            }
+        }
+
+        if ($certIsValid) {
+            continue
+        }
+        else {
+            if (-not $certIsValid -and $certExists) {
+                Remove-Item $certPath -Force
+            } 
+
+            $password = [guid]::NewGuid().ToString()
+
+            dotnet dev-certs https -ep $certPath -p $password | Out-Null
+            dotnet user-secrets set $secretName $password --project $project.FullName | Out-Null
+
+            Write-Host "[" -NoNewline
+            Write-Host $projectName -ForegroundColor Green -NoNewline
+            Write-Host "] Created certificate and kestrel password secret"
+            $certsCreated++
+        }
     }
-
     Write-Host "`n Done! Checked $($projects.Count) projects, created $certsCreated new certificates."
 }
