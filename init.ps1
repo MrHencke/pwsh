@@ -54,6 +54,10 @@ function Init {
     ensure-Winget -PackageId "RedHat.Podman-Desktop" -DisplayName "Podman Desktop"
     ensure-Winget -PackageId "Containers.PodmanTUI" -DisplayName "Podman TUI"
 
+    ensure-Winget -PackageId "Microsoft.DotNet.SDK.8" -DisplayName "Dotnet 8"
+    ensure-Winget -PackageId "Microsoft.DotNet.SDK.9" -DisplayName "Dotnet 9"
+    ensure-Winget -PackageId "Microsoft.DotNet.SDK.10" -DisplayName "Dotnet 10"
+
     Ensure-Module -ModuleName "PSReadLine"
     Ensure-Module -ModuleName "PSFzf"
     Ensure-Module -ModuleName "CompletionPredictor"
