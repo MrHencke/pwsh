@@ -498,3 +498,26 @@ function Reset-Profile {
     git fetch | Out-Null
     git reset --hard origin/master
 }
+
+# Fixes an unscrollable terminal if bugged (https://github.com/microsoft/terminal/issues/18441)
+function Fix-Scroll {
+    Write-Output "`e[?1049l"
+}
+
+function Touch {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    
+    $full = [IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
+    $directory = Split-Path $full -Parent
+    
+    if (-not (Test-Path $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+    
+    if (Test-Path $full) {
+        (Get-Item $full).LastWriteTime = Get-Date
+    }
+    else {
+        New-Item -ItemType File -Path $full -Force | Out-Null
+    }
+}
