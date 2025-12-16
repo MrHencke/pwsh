@@ -53,6 +53,7 @@ function Init {
     ensure-Winget -PackageId "RedHat.Podman" -DisplayName "Podman"
     ensure-Winget -PackageId "RedHat.Podman-Desktop" -DisplayName "Podman Desktop"
     ensure-Winget -PackageId "Containers.PodmanTUI" -DisplayName "Podman TUI"
+    ensure-Winget -PackageId "JesseDuffield.Lazydocker" -DisplayName "Docker TUI"
 
     ensure-Winget -PackageId "Microsoft.DotNet.SDK.8" -DisplayName "Dotnet 8"
     ensure-Winget -PackageId "Microsoft.DotNet.SDK.9" -DisplayName "Dotnet 9"
