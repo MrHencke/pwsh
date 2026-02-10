@@ -521,3 +521,172 @@ function Touch {
         New-Item -ItemType File -Path $full -Force | Out-Null
     }
 }
+
+function Register-CronJob {
+    <#
+    .SYNOPSIS
+        Registers a command as a scheduled task in Windows Task Scheduler.
+
+    .DESCRIPTION
+        This script creates a scheduled task that runs a specified command at defined intervals,
+        similar to cron jobs in Linux/Unix systems.
+
+    .PARAMETER TaskName
+        The name of the scheduled task to create.
+
+    .PARAMETER Command
+        The command or script to execute.
+
+    .PARAMETER Schedule
+        The schedule type: Daily, Weekly, Monthly, OnStartup, OnLogon, or Hourly.
+
+    .PARAMETER Time
+        The time to run the task (24-hour format, e.g., "14:30"). Required for Daily/Weekly/Monthly.
+
+    .PARAMETER Interval
+        For Daily: number of days between runs (default: 1)
+        For Weekly: day of week (Monday, Tuesday, etc.)
+        For Hourly: number of hours between runs (default: 1)
+
+    .PARAMETER Description
+        Optional description for the task.
+
+    .PARAMETER RunAsUser
+        The user account to run the task under (default: current user).
+
+    .PARAMETER RunElevated
+        Run the task with highest privileges.
+
+    .EXAMPLE
+        Register-CronJob -TaskName "BackupDaily" -Command "C:\Scripts\backup.ps1" -Schedule Daily -Time "02:00"
+
+    .EXAMPLE
+        Register-CronJob -TaskName "EveryTwoHours" -Command "C:\Scripts\check.ps1" -Schedule Hourly -Interval 2
+
+    .EXAMPLE
+        Register-CronJob -TaskName "WeeklyCleanup" -Command "powershell.exe -File C:\Scripts\cleanup.ps1" -Schedule Weekly -Time "18:00" -Interval Sunday
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TaskName,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Command,
+        
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Daily", "Weekly", "Monthly", "OnStartup", "OnLogon", "Hourly")]
+        [string]$Schedule,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$Time,
+        
+        [Parameter(Mandatory = $false)]
+        $Interval,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$Description = "Scheduled task created by Register-CronJob script",
+        
+        [Parameter(Mandatory = $false)]
+        [string]$RunAsUser = $env:USERNAME,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$RunElevated
+    )
+
+    try {
+        # Validate time parameter for schedules that require it
+        if ($Schedule -in @("Daily", "Weekly", "Monthly") -and -not $Time) {
+            throw "Time parameter is required for $Schedule schedule type."
+        }
+
+        # Parse the command to determine action
+        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$Command`""
+        
+        # If the command is an executable or batch file, adjust the action
+        if ($Command -match '\.(exe|bat|cmd)$') {
+            $action = New-ScheduledTaskAction -Execute $Command
+        }
+
+        # Create trigger based on schedule type
+        $trigger = $null
+        
+        switch ($Schedule) {
+            "Daily" {
+                $intervalDays = if ($Interval) { [int]$Interval } else { 1 }
+                $trigger = New-ScheduledTaskTrigger -Daily -At $Time -DaysInterval $intervalDays
+            }
+            "Weekly" {
+                $dayOfWeek = if ($Interval) { $Interval } else { "Monday" }
+                $trigger = New-ScheduledTaskTrigger -Weekly -At $Time -DaysOfWeek $dayOfWeek
+            }
+            "Monthly" {
+                $trigger = New-ScheduledTaskTrigger -Daily -At $Time
+            }
+            "Hourly" {
+                $hours = if ($Interval) { [int]$Interval } else { 1 }
+                $startTime = if ($Time) { $Time } else { (Get-Date).ToString("HH:mm") }
+                
+                # Create a trigger that starts today and repeats every N hours indefinitely
+                $trigger = New-ScheduledTaskTrigger -Once -At $startTime -RepetitionInterval (New-TimeSpan -Hours $hours) -RepetitionDuration ([TimeSpan]::MaxValue)
+            }
+            "OnStartup" {
+                $trigger = New-ScheduledTaskTrigger -AtStartup
+            }
+            "OnLogon" {
+                $trigger = New-ScheduledTaskTrigger -AtLogOn -User $RunAsUser
+            }
+        }
+
+        # Create principal (user context)
+        $principalParams = @{
+            UserId = $RunAsUser
+        }
+        
+        if ($RunElevated) {
+            $principalParams.Add("RunLevel", "Highest")
+        }
+        
+        $principal = New-ScheduledTaskPrincipal @principalParams
+
+        # Create settings
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+        # Register the task
+        $task = Register-ScheduledTask -TaskName $TaskName `
+            -Action $action `
+            -Trigger $trigger `
+            -Principal $principal `
+            -Settings $settings `
+            -Description $Description `
+            -Force
+
+        Write-Host "✓ Successfully registered scheduled task: $TaskName" -ForegroundColor Green
+        Write-Host "  Schedule: $Schedule" -ForegroundColor Cyan
+        Write-Host "  Command: $Command" -ForegroundColor Cyan
+        
+        if ($Schedule -eq "Hourly") {
+            $hours = if ($Interval) { $Interval } else { 1 }
+            Write-Host "  Interval: Every $hours hour(s)" -ForegroundColor Cyan
+            Write-Host "  Start Time: $startTime" -ForegroundColor Cyan
+        }
+        elseif ($Time) {
+            Write-Host "  Time: $Time" -ForegroundColor Cyan
+        }
+        
+        if ($Interval -and $Schedule -ne "Hourly") {
+            Write-Host "  Interval: $Interval" -ForegroundColor Cyan
+        }
+        
+        # Display the task info
+        Write-Host "`nTask Details:" -ForegroundColor Yellow
+        Get-ScheduledTask -TaskName $TaskName | Format-List TaskName, State, TaskPath
+        
+        return $task
+    }
+    catch {
+        Write-Error "Failed to register scheduled task: $_"
+        return $null
+    }
+}
