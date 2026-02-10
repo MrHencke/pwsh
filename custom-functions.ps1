@@ -944,7 +944,6 @@ function Register-CronJob {
                 $hours = if ($Interval) { [int]$Interval } else { 1 }
                 $startTime = if ($Time) { $Time } else { (Get-Date).ToString("HH:mm") }
                 
-                # Create a trigger that starts today and repeats every N hours indefinitely
                 $trigger = New-ScheduledTaskTrigger -Once -At $startTime -RepetitionInterval (New-TimeSpan -Hours $hours) -RepetitionDuration ([TimeSpan]::MaxValue)
             }
             "OnStartup" {
@@ -977,6 +976,34 @@ function Register-CronJob {
             -Settings $settings `
             -Description $Description `
             -Force
+
+        if ($Schedule -eq "Hourly") {
+            $hours = if ($Interval) { [int]$Interval } else { 1 }
+            
+            $taskXml = [xml](Export-ScheduledTask -TaskName $TaskName)
+            
+            $triggerNode = $taskXml.Task.Triggers.TimeTrigger
+            
+            if ($triggerNode.Repetition -eq $null) {
+                $repetitionNode = $taskXml.CreateElement("Repetition", $taskXml.DocumentElement.NamespaceURI)
+                $triggerNode.AppendChild($repetitionNode) | Out-Null
+            }
+            else {
+                $repetitionNode = $triggerNode.Repetition
+            }
+            
+            if ($repetitionNode.Interval -eq $null) {
+                $intervalNode = $taskXml.CreateElement("Interval", $taskXml.DocumentElement.NamespaceURI)
+                $repetitionNode.AppendChild($intervalNode) | Out-Null
+            }
+            $repetitionNode.Interval = "PT${hours}H"
+            
+            if ($repetitionNode.Duration -ne $null) {
+                $repetitionNode.RemoveChild($repetitionNode.Duration) | Out-Null
+            }
+            
+            Register-ScheduledTask -TaskName $TaskName -Xml $taskXml.OuterXml -Force | Out-Null
+        }
 
         Write-Host "✓ Successfully registered scheduled task: $TaskName" -ForegroundColor Green
         Write-Host "  Schedule: $Schedule" -ForegroundColor Cyan
