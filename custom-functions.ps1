@@ -1,6 +1,38 @@
 # Custom utility funcs
 
 function localpack {
+    <#
+    .SYNOPSIS
+        Packages a .NET project locally as a NuGet package.
+
+    .DESCRIPTION
+        Creates a local NuGet package from a .NET project and optionally adds it to the local NuGet feed.
+        Handles version extraction from .csproj files and manages NuGet cache cleanup.
+
+    .PARAMETER ProjectPath
+        The path to the project directory containing the .csproj file. Default: current directory.
+
+    .PARAMETER OutputDirectory
+        The output directory for the NuGet package. Default: $env:USERPROFILE\LocalNugets.
+
+    .PARAMETER Configuration
+        Build configuration (Release, Debug, etc.). Default: Release.
+
+    .PARAMETER VersionSuffix
+        Version suffix to append (e.g., "-local"). Default: -local.
+
+    .PARAMETER Clean
+        Whether to run 'dotnet clean' before packing. Default: $true.
+
+    .PARAMETER Version
+        Explicit version number. If not provided, extracted from .csproj.
+
+    .PARAMETER Install
+        Register the output directory as a local NuGet feed.
+
+    .EXAMPLE
+        localpack -ProjectPath "./MyProject" -Install
+    #>
     [CmdletBinding()]
     param(
         [string]$ProjectPath = ".",
@@ -93,6 +125,38 @@ function localpack {
 }
 
 function localpack-children {
+    <#
+    .SYNOPSIS
+        Packages all .NET projects in a directory tree locally.
+
+    .DESCRIPTION
+        Recursively finds and packages all .NET projects from a starting path to a local NuGet directory.
+        Processes projects in parallel with a throttle limit.
+
+    .PARAMETER StartPath
+        The root path to search for .csproj files recursively. Default: current directory.
+
+    .PARAMETER OutputDirectory
+        The output directory for NuGet packages. Default: $env:USERPROFILE\LocalNugets.
+
+    .PARAMETER Configuration
+        Build configuration. Default: Release.
+
+    .PARAMETER VersionSuffix
+        Version suffix to append. Default: -local.
+
+    .PARAMETER Clean
+        Whether to run 'dotnet clean' before packing. Default: $true.
+
+    .PARAMETER Version
+        Explicit version number for all projects.
+
+    .PARAMETER Install
+        Register the output directory as a local NuGet feed.
+
+    .EXAMPLE
+        localpack-children -StartPath "./src" -Install
+    #>
     [CmdletBinding()]
     param(
         [string]$StartPath = ".",
@@ -122,12 +186,44 @@ function localpack-children {
     } -ThrottleLimit 4
 }
 
-function which ($command) {
+function which {
+    <#
+    .SYNOPSIS
+        Locates the path of a command or executable.
+
+    .DESCRIPTION
+        Displays the full path of a command by querying PowerShell's command discovery.
+        Similar to the Unix 'which' command.
+
+    .PARAMETER command
+        The name of the command to locate.
+
+    .EXAMPLE
+        which powershell
+    #>
+    param($command)
     Get-Command -Name $command -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty Path -ErrorAction SilentlyContinue
 }
 
 Function gig {
+    <#
+    .SYNOPSIS
+        Generates a .gitignore file for specified technologies.
+
+    .DESCRIPTION
+        Downloads a preconfigured .gitignore file from the Toptal API for specified languages/frameworks
+        and saves it to the current directory.
+
+    .PARAMETER list
+        One or more programming languages or frameworks (e.g., "csharp", "node", "python").
+
+    .EXAMPLE
+        gig csharp
+
+    .EXAMPLE
+        gig csharp, node, python
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$list
@@ -137,11 +233,28 @@ Function gig {
 }
 
 function Restart-PowerShell {
+    <#
+    .SYNOPSIS
+        Restarts PowerShell in the current window.
+
+    .DESCRIPTION
+        Launches a new instance of pwsh.exe to refresh the shell environment.
+        Alias: 'reload'.
+    #>
     Invoke-Command { & "pwsh.exe" } -NoNewScope 
 }
 Set-Alias -Name 'reload' -Value 'Restart-PowerShell'
 
 function Remove-BinObjFolders {
+    <#
+    .SYNOPSIS
+        Removes all 'bin' and 'obj' folders recursively.
+
+    .DESCRIPTION
+        Recursively searches the current directory for 'bin' and 'obj' folders (common in .NET projects)
+        and removes them. Prevents running in home directory as a safety measure.
+        Alias: 'clean'.
+    #>
     # Get the current working directory
     $currentDir = Get-Location
     if ($currentDir -eq $HOME) {
@@ -154,6 +267,20 @@ function Remove-BinObjFolders {
 Set-Alias -Name 'clean' -Value 'Remove-BinObjFolders'
 
 function Remove-BinObjFolders-Params {
+    <#
+    .SYNOPSIS
+        Removes specified folders recursively.
+
+    .DESCRIPTION
+        Recursively removes folders with specified names from the current directory.
+        Alias: 'cleanDir'.
+
+    .PARAMETER Folders
+        One or more folder names to delete (e.g., "bin", "obj", "dist").
+
+    .EXAMPLE
+        cleanDir bin obj dist
+    #>
     param(
         [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
         [string[]]$Folders
@@ -167,6 +294,23 @@ Set-Alias -Name 'cleanDir' -Value 'Remove-BinObjFolders-Params'
 
 
 function Set-Link {
+    <#
+    .SYNOPSIS
+        Creates a symbolic link.
+
+    .DESCRIPTION
+        Creates a symbolic link from a source to a target path.
+        Alias: 'ln'.
+
+    .PARAMETER from
+        The source path to link from.
+
+    .PARAMETER to
+        The target path for the symbolic link.
+
+    .EXAMPLE
+        ln "C:\source\folder" "C:\target\link"
+    #>
     param(
         [string]$from,
         [string]$to
@@ -180,6 +324,23 @@ Set-Alias -Name 'unfuckwinget' -Value 'Repair-WinGetPackageManager'
 Set-Alias -Name 'sudo' -Value 'gsudo'
 
 function Get-String-Value-Line {
+    <#
+    .SYNOPSIS
+        Searches for lines matching a pattern.
+
+    .DESCRIPTION
+        Filters input to find lines matching a regular expression pattern.
+        Alias: 'grep'.
+
+    .PARAMETER pattern
+        The regex pattern to search for.
+
+    .PARAMETER ignoreCase
+        Perform case-insensitive search.
+
+    .EXAMPLE
+        Get-Content file.txt | grep "error"
+    #>
     param (
         [string]$pattern,
         [switch]$ignoreCase
@@ -198,6 +359,23 @@ function Get-String-Value-Line {
 Set-Alias -Name 'grep' -Value 'Get-String-Value-Line'
 
 function Convert-LineEndings {
+    <#
+    .SYNOPSIS
+        Converts line endings in files.
+
+    .DESCRIPTION
+        Recursively converts line endings in all files within a directory.
+        Can convert between LF (Unix) and CRLF (Windows) formats.
+
+    .PARAMETER Path
+        The directory path to process. Default: current directory.
+
+    .PARAMETER ToLF
+        If $true, convert to LF. If $false, convert to CRLF. Default: $true.
+
+    .EXAMPLE
+        Convert-LineEndings -Path "./src" -ToLF:$true
+    #>
     [CmdletBinding()]
     param (
         [string]$Path = (Get-Location),
@@ -232,6 +410,19 @@ function Convert-LineEndings {
 }
 
 function ToLF {
+    <#
+    .SYNOPSIS
+        Converts all line endings to LF (Unix format).
+
+    .DESCRIPTION
+        Recursively converts all files in a directory to use LF (\n) line endings.
+
+    .PARAMETER Path
+        The directory path to process. Default: current directory.
+
+    .EXAMPLE
+        ToLF -Path "./src"
+    #>
     param (
         [string]$Path = (Get-Location) 
     )
@@ -239,6 +430,19 @@ function ToLF {
 }
 
 function ToCRLF {
+    <#
+    .SYNOPSIS
+        Converts all line endings to CRLF (Windows format).
+
+    .DESCRIPTION
+        Recursively converts all files in a directory to use CRLF (\r\n) line endings.
+
+    .PARAMETER Path
+        The directory path to process. Default: current directory.
+
+    .EXAMPLE
+        ToCRLF -Path "./src"
+    #>
     param (
         [string]$Path = (Get-Location) 
     )
@@ -247,6 +451,27 @@ function ToCRLF {
 
 
 function Show-PowerStateEvents {
+    <#
+    .SYNOPSIS
+        Displays system power state events from the event log.
+
+    .DESCRIPTION
+        Retrieves and displays Kernel-Power events from the Windows event log for a specified date range.
+        Events are filtered, deduplicated, and can be restricted to lid-specific events.
+        User selects which date to view from available options.
+
+    .PARAMETER DaysBack
+        Number of days to look back in the event log. Default: 7.
+
+    .PARAMETER OnlyLid
+        Filter to only show lid-related events. Default: $true.
+
+    .EXAMPLE
+        Show-PowerStateEvents -DaysBack 14
+
+    .EXAMPLE
+        Show-PowerStateEvents -DaysBack 30 -OnlyLid:$false
+    #>
     # Shows power state events for a specified date
     # Was bootstrapped by Copilot, then fine tuned manually
     [CmdletBinding()]
@@ -368,11 +593,32 @@ function Show-PowerStateEvents {
 }
 
 function gitlog {
+    <#
+    .SYNOPSIS
+        Displays commits made after branching from master.
+
+    .DESCRIPTION
+        Shows a formatted list of commits on the current branch that have been made after diverging from the master branch.
+    #>
     # Quick shortcut to pretty print git commits on current branch that have been made after diverging from master
     git log master..HEAD --oneline --pretty=format:"- %s"
 }
 
 function psqlad {
+    <#
+    .SYNOPSIS
+        Connects to PostgreSQL via Azure AD authentication.
+
+    .DESCRIPTION
+        Retrieves an Azure access token for the current user and connects to PostgreSQL using it.
+        Passes through all psql arguments, with optional user override.
+
+    .PARAMETER PsqlUser
+        Optional PostgreSQL user (uses $PsqlUser variable if not specified with -U flag).
+
+    .EXAMPLE
+        psqlad -h myserver.postgres.database.azure.com
+    #>
     $env:PGPASSWORD = az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv
 
     if (-not ($args -match '^-U$') && -not ($args -match '^--username$') && $null -ne $PsqlUser) {
@@ -384,6 +630,20 @@ function psqlad {
 }
 
 function Write-Host-Padded {
+    <#
+    .SYNOPSIS
+        Displays a message padded to the console width.
+
+    .DESCRIPTION
+        Writes a message to the console padded to the current window width, using carriage return
+        to overwrite the line. Useful for progress messages.
+
+    .PARAMETER Msg
+        The message to display.
+
+    .EXAMPLE
+        Write-Host-Padded "Processing item 5/10..."
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -397,8 +657,25 @@ function Write-Host-Padded {
     Write-Host $paddedMsg -NoNewline
 }
 
-# Create development HTTPS certificates for ASP.NET Core projects in the same manner as visual studio does
 function Create-DevCerts {
+    <#
+    .SYNOPSIS
+        Creates development HTTPS certificates for ASP.NET Core projects.
+
+    .DESCRIPTION
+        Automatically creates development HTTPS certificates for all ASP.NET Core projects
+        (SDK = Microsoft.NET.Sdk.Web) in the specified directory. Similar to Visual Studio's behavior.
+        Stores certificates in the ASP.NET Https folder and manages user secrets.
+
+    .PARAMETER ProjectsRoot
+        The root directory to search for .csproj files. Default: 'src'.
+
+    .EXAMPLE
+        Create-DevCerts
+
+    .EXAMPLE
+        Create-DevCerts -ProjectsRoot "./MyProjects"
+    #>
     [CmdletBinding()]
     param(
         [Parameter()]
@@ -477,8 +754,15 @@ function Create-DevCerts {
     Write-Host-Padded "Done! Checked $processedCount candidate projects, created $certsCreated new certificates."
 }
 
-# Fetches updates and reloads profile
 function Update-Profile {
+    <#
+    .SYNOPSIS
+        Fetches profile updates from the repository and reloads.
+
+    .DESCRIPTION
+        Pulls the latest changes from the PowerShell profile repository and automatically
+        reloads PowerShell if updates were found.
+    #>
     $profileFolder = Split-Path $PROFILE
     Push-Location $profileFolder
 
@@ -495,16 +779,48 @@ function Update-Profile {
 }
 
 function Reset-Profile {
+    <#
+    .SYNOPSIS
+        Resets the profile to match the remote master branch.
+
+    .DESCRIPTION
+        Hard resets the local profile repository to match origin/master,
+        discarding any local changes.
+    #>
     git fetch | Out-Null
     git reset --hard origin/master
 }
 
-# Fixes an unscrollable terminal if bugged (https://github.com/microsoft/terminal/issues/18441)
 function Fix-Scroll {
+    <#
+    .SYNOPSIS
+        Fixes an unscrollable terminal bug.
+
+    .DESCRIPTION
+        Outputs the escape sequence to fix the terminal scrolling issue
+        described in https://github.com/microsoft/terminal/issues/18441.
+
+    .EXAMPLE
+        Fix-Scroll
+    #>
     Write-Output "`e[?1049l"
 }
 
 function Touch {
+    <#
+    .SYNOPSIS
+        Creates a file or updates its timestamp.
+
+    .DESCRIPTION
+        Creates a new file at the specified path, or updates the modification time of an existing file.
+        Creates parent directories if needed. Similar to the Unix 'touch' command.
+
+    .PARAMETER Path
+        The path of the file to create or touch.
+
+    .EXAMPLE
+        Touch "./src/newfile.txt"
+    #>
     param([Parameter(Mandatory = $true)][string]$Path)
     
     $full = [IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
