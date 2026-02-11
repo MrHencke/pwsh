@@ -887,64 +887,74 @@ function Register-CronJob {
     param(
         [Parameter(Mandatory = $true)]
         [string]$TaskName,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$Command,
-        
+
         [Parameter(Mandatory = $true)]
         [ValidateSet("Daily", "Weekly", "Monthly", "OnStartup", "OnLogon", "Hourly")]
         [string]$Schedule,
-        
-        [Parameter(Mandatory = $false)]
+
         [string]$Time,
-        
-        [Parameter(Mandatory = $false)]
+
         $Interval,
-        
-        [Parameter(Mandatory = $false)]
-        [string]$Description = "Scheduled task created by Register-CronJob script",
-        
-        [Parameter(Mandatory = $false)]
+
+        [string]$Description = "Scheduled task created by Register-CronJob",
+
         [string]$RunAsUser = $env:USERNAME,
-        
-        [Parameter(Mandatory = $false)]
-        [switch]$RunElevated
+
+        [switch]$RunElevated,
+
+        [bool]$Silent = $true
     )
 
-    try {
+    try {        
         # Validate time parameter for schedules that require it
         if ($Schedule -in @("Daily", "Weekly", "Monthly") -and -not $Time) {
             throw "Time parameter is required for $Schedule schedule type."
         }
 
-        # Parse the command to determine action
-        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$Command`""
-        
-        # If the command is an executable or batch file, adjust the action
-        if ($Command -match '\.(exe|bat|cmd)$') {
-            $action = New-ScheduledTaskAction -Execute $Command
+        $psArgs = "-NoProfile -ExecutionPolicy Bypass"
+
+        if ($Silent) {
+            $psArgs += " -NonInteractive -WindowStyle Hidden"
         }
 
-        # Create trigger based on schedule type
-        $trigger = $null
-        
+        if ($Command -match '\.ps1$') {
+            $action = New-ScheduledTaskAction `
+                -Execute "powershell.exe" `
+                -Argument "$psArgs -File `"$Command`""
+        }
+        elseif ($Command -match '\.(exe|bat|cmd)$') {
+            $action = New-ScheduledTaskAction -Execute $Command
+        }
+        else {
+            $action = New-ScheduledTaskAction `
+                -Execute "powershell.exe" `
+                -Argument "$psArgs -Command `"$Command`""
+        }
+
         switch ($Schedule) {
             "Daily" {
-                $intervalDays = if ($Interval) { [int]$Interval } else { 1 }
-                $trigger = New-ScheduledTaskTrigger -Daily -At $Time -DaysInterval $intervalDays
+                $days = if ($Interval) { [int]$Interval } else { 1 }
+                $trigger = New-ScheduledTaskTrigger -Daily -At $Time -DaysInterval $days
             }
             "Weekly" {
-                $dayOfWeek = if ($Interval) { $Interval } else { "Monday" }
-                $trigger = New-ScheduledTaskTrigger -Weekly -At $Time -DaysOfWeek $dayOfWeek
+                $day = if ($Interval) { $Interval } else { "Monday" }
+                $trigger = New-ScheduledTaskTrigger -Weekly -At $Time -DaysOfWeek $day
             }
             "Monthly" {
                 $trigger = New-ScheduledTaskTrigger -Daily -At $Time
             }
             "Hourly" {
                 $hours = if ($Interval) { [int]$Interval } else { 1 }
-                $startTime = if ($Time) { $Time } else { (Get-Date).ToString("HH:mm") }
-                
-                $trigger = New-ScheduledTaskTrigger -Once -At $startTime -RepetitionInterval (New-TimeSpan -Hours $hours) -RepetitionDuration ([TimeSpan]::MaxValue)
+                $start = if ($Time) { $Time } else { (Get-Date).ToString("HH:mm") }
+
+                $trigger = New-ScheduledTaskTrigger `
+                    -Once `
+                    -At $start `
+                    -RepetitionInterval (New-TimeSpan -Hours $hours)
+
             }
             "OnStartup" {
                 $trigger = New-ScheduledTaskTrigger -AtStartup
@@ -954,22 +964,30 @@ function Register-CronJob {
             }
         }
 
-        # Create principal (user context)
         $principalParams = @{
             UserId = $RunAsUser
         }
-        
+
         if ($RunElevated) {
-            $principalParams.Add("RunLevel", "Highest")
+            $principalParams.RunLevel = "Highest"
         }
-        
+
         $principal = New-ScheduledTaskPrincipal @principalParams
 
-        # Create settings
-        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+        $settingsParams = @{
+            AllowStartIfOnBatteries    = $true
+            DontStopIfGoingOnBatteries = $true
+            StartWhenAvailable         = $true
+        }
 
-        # Register the task
-        $task = Register-ScheduledTask -TaskName $TaskName `
+        if ($Silent) {
+            $settingsParams.Hidden = $true
+        }
+
+        $settings = New-ScheduledTaskSettingsSet @settingsParams
+
+        $task = Register-ScheduledTask `
+            -TaskName $TaskName `
             -Action $action `
             -Trigger $trigger `
             -Principal $principal `
@@ -977,55 +995,11 @@ function Register-CronJob {
             -Description $Description `
             -Force
 
-        if ($Schedule -eq "Hourly") {
-            $hours = if ($Interval) { [int]$Interval } else { 1 }
-            
-            $taskXml = [xml](Export-ScheduledTask -TaskName $TaskName)
-            
-            $triggerNode = $taskXml.Task.Triggers.TimeTrigger
-            
-            if ($triggerNode.Repetition -eq $null) {
-                $repetitionNode = $taskXml.CreateElement("Repetition", $taskXml.DocumentElement.NamespaceURI)
-                $triggerNode.AppendChild($repetitionNode) | Out-Null
-            }
-            else {
-                $repetitionNode = $triggerNode.Repetition
-            }
-            
-            if ($repetitionNode.Interval -eq $null) {
-                $intervalNode = $taskXml.CreateElement("Interval", $taskXml.DocumentElement.NamespaceURI)
-                $repetitionNode.AppendChild($intervalNode) | Out-Null
-            }
-            $repetitionNode.Interval = "PT${hours}H"
-            
-            if ($repetitionNode.Duration -ne $null) {
-                $repetitionNode.RemoveChild($repetitionNode.Duration) | Out-Null
-            }
-            
-            Register-ScheduledTask -TaskName $TaskName -Xml $taskXml.OuterXml -Force | Out-Null
-        }
-
-        Write-Host "✓ Successfully registered scheduled task: $TaskName" -ForegroundColor Green
+        Write-Host "✓ Registered scheduled task: $TaskName" -ForegroundColor Green
         Write-Host "  Schedule: $Schedule" -ForegroundColor Cyan
-        Write-Host "  Command: $Command" -ForegroundColor Cyan
-        
-        if ($Schedule -eq "Hourly") {
-            $hours = if ($Interval) { $Interval } else { 1 }
-            Write-Host "  Interval: Every $hours hour(s)" -ForegroundColor Cyan
-            Write-Host "  Start Time: $startTime" -ForegroundColor Cyan
-        }
-        elseif ($Time) {
-            Write-Host "  Time: $Time" -ForegroundColor Cyan
-        }
-        
-        if ($Interval -and $Schedule -ne "Hourly") {
-            Write-Host "  Interval: $Interval" -ForegroundColor Cyan
-        }
-        
-        # Display the task info
-        Write-Host "`nTask Details:" -ForegroundColor Yellow
-        Get-ScheduledTask -TaskName $TaskName | Format-List TaskName, State, TaskPath
-        
+        Write-Host "  Silent:   $Silent" -ForegroundColor Cyan
+        Write-Host "  Command:  $Command" -ForegroundColor Cyan
+
         return $task
     }
     catch {
