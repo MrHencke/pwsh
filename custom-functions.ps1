@@ -926,7 +926,9 @@ function Register-CronJob {
                 -Argument "$psArgs -File `"$Command`""
         }
         elseif ($Command -match '\.(exe|bat|cmd)$') {
-            $action = New-ScheduledTaskAction -Execute $Command
+            $action = New-ScheduledTaskAction `
+                -Execute "powershell.exe" `
+                -Argument "$psArgs -Command `"Start-Process -FilePath '$Command' -NoNewWindow -Wait`""
         }
         else {
             $action = New-ScheduledTaskAction `
