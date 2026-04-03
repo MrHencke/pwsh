@@ -1,89 +1,97 @@
-function Ensure-Winget {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$PackageId,
+$script:WingetPackages = @(
+    "ajeetdsouza.zoxide"
+    "Starship.Starship"
+    "Schniz.fnm"
+    "gerardog.gsudo"
+    "junegunn.fzf"
+    "Derailed.k9s"
+    "Neovim.Neovim"
+    "Git.Git"
+    "aristocratos.btop4win"
+    "JesseDuffield.Lazydocker"
+    "Rustlang.Rustup"
+)
+$script:DotnetVersions = @(
+    "8" 
+    "9" 
+    "10" 
+    "Preview"
+)
+$script:PsModules = @(
+    "PSFzf"
+    "CompletionPredictor"
+    "Microsoft.WinGet.CommandNotFound"
+)
 
-        [string]$DisplayName = $null 
-    )
-
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Error "winget is not available. Please install winget first."
-        return
-    }
-
-    $pkgName = if ($DisplayName) { $DisplayName } else { $PackageId }
-    $isInstalled = (winget list --id $PackageId 2>$null) -match $PackageId
-
-    if (-not $isInstalled) {
-        Write-Host "$pkgName is not installed. Installing..."
+function Install-WingetPackage {
+    param([Parameter(Mandatory)][string]$PackageId)
+    if (-not ((winget list --id $PackageId --exact 2>$null) | Select-String $PackageId)) {
+        Write-Host "Installing $PackageId..."
         winget install --id $PackageId -e --accept-source-agreements --accept-package-agreements
     }
-    else {
-        Write-Host "$pkgName is already installed."
-    }
 }
 
-function Ensure-Module {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$ModuleName
-    )
-    $moduleIsInstalled = [bool](Get-Module -ListAvailable -Name $ModuleName)
-    if (-not $moduleIsInstalled) {
-        Write-Host "Installing PowerShell module: $ModuleName"
+function Install-RequiredModule {
+    param([Parameter(Mandatory)][string]$ModuleName)
+    if (-not (Get-Module -ListAvailable -Name $ModuleName)) {
+        Write-Host "Installing module: $ModuleName"
         Install-Module -Name $ModuleName -Force -Scope CurrentUser
     }
-    else {
-        Write-Host "$ModuleName module is already installed."
+}
+
+function Set-StarshipConfig {
+    $dest = "$env:USERPROFILE\.config\starship.toml"
+    $target = "$PSScriptRoot\starship.toml"
+    $existing = Get-Item $dest -ErrorAction SilentlyContinue
+    if (-not ($existing.Target -contains $target)) {
+        if ($existing) {
+            $i = 1
+            while (Test-Path "$env:USERPROFILE\.config\starship.old$i.toml") { $i++ }
+            Rename-Item $dest "$env:USERPROFILE\.config\starship.old$i.toml"
+            Write-Host "Existing starship.toml renamed to starship.old$i.toml"
+        }
+        New-Item -ItemType SymbolicLink -Path $dest -Target $target | Out-Null
+        Write-Host "Linked starship.toml"
     }
 }
 
-function Init {
+function Initialize-Environment {
     Write-Host "`n--- Initializing Packages ---`n"
-
-    Ensure-Winget -PackageId "ajeetdsouza.zoxide" -DisplayName "Zoxide"
-    Ensure-Winget -PackageId "Starship.Starship" -DisplayName "Starship Prompt"
-    Ensure-Winget -PackageId "Schniz.fnm" -DisplayName "FNM (Node Version Manager)"
-    Ensure-Winget -PackageId "gerardog.gsudo" -DisplayName "gsudo (Elevated Command Execution)"
-    Ensure-Winget -PackageId "junegunn.fzf" -DisplayName "FZF (Command-line Fuzzy Finder)"
-    Ensure-Winget -PackageId "Derailed.k9s" -DisplayName "K9s (Kubernetes CLI)"
-    Ensure-Winget -PackageId "Neovim.Neovim" -DisplayName "Neovim"
-    ensure-Winget -PackageId "Git.Git" -DisplayName "Git"
-    ensure-Winget -PackageId "aristocratos.btop4win" -DisplayName "btop"
-    ensure-Winget -PackageId "RedHat.Podman" -DisplayName "Podman"
-    ensure-Winget -PackageId "RedHat.Podman-Desktop" -DisplayName "Podman Desktop"
-    ensure-Winget -PackageId "Containers.PodmanTUI" -DisplayName "Podman TUI"
-    ensure-Winget -PackageId "JesseDuffield.Lazydocker" -DisplayName "Docker TUI"
-
-    ensure-Winget -PackageId "Microsoft.DotNet.SDK.8" -DisplayName "Dotnet 8"
-    ensure-Winget -PackageId "Microsoft.DotNet.SDK.9" -DisplayName "Dotnet 9"
-    ensure-Winget -PackageId "Microsoft.DotNet.SDK.10" -DisplayName "Dotnet 10"
-
-    Ensure-Module -ModuleName "PSReadLine"
-    Ensure-Module -ModuleName "PSFzf"
-    Ensure-Module -ModuleName "CompletionPredictor"
-    Ensure-Module -ModuleName "Microsoft.WinGet.CommandNotFound"
-
-    if (Get-Command "kubectl" -ErrorAction SilentlyContinue) {
-        kubectl completion powershell | Out-String > $profile/../generated/kubectl-completions.ps1
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Error "winget is not available."
+        return
     }
-    if (Get-Command "rustup" -ErrorAction SilentlyContinue) {
-        rustup completions powershell | Out-String > $profile/../generated/rustup-completions.ps1
-    }
+    foreach ($pkg in $script:WingetPackages) { Install-WingetPackage $pkg }
+    foreach ($v in $script:DotnetVersions) { Install-WingetPackage "Microsoft.DotNet.SDK.$v" }
+    foreach ($mod in $script:PsModules) { Install-RequiredModule $mod }
+    Set-StarshipConfig
+    Write-Host "`nInitialization complete.`n"
 }
 
-$FlagFile = "$env:LOCALAPPDATA\init_env_flag"
-
-if (-not (Test-Path $FlagFile)) {
-    Init
-    New-Item -Path $FlagFile -ItemType File -Force | Out-Null
-    Write-Host "`nInitialization complete. Flag saved at $FlagFile`n"
-} 
-
-$starshipSource = Join-Path (Split-Path -Parent $PROFILE) "starship.toml"
-$starshipDestination = "$env:USERPROFILE\.config\starship.toml"
-
-if (-Not (Test-Path $starshipDestination)) {
-    Write-Output "Linking starship.toml to $starshipDestination"
-    Set-Link -From $starshipSource -To $starshipDestination
+function Update-Environment {
+    Write-Host "`n--- Updating Packages ---`n"
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Error "winget is not available."
+        return
+    }
+    foreach ($pkg in $script:WingetPackages) { winget upgrade --id $pkg -e --accept-source-agreements --accept-package-agreements }
+    foreach ($v in $script:DotnetVersions) { winget upgrade --id "Microsoft.DotNet.SDK.$v" -e --accept-source-agreements --accept-package-agreements }
+    foreach ($mod in $script:PsModules) { Update-Module $mod -Force -ErrorAction SilentlyContinue }
+    Write-Host "`nUpdate complete.`n"
 }
+
+$dateFile = "$env:LOCALAPPDATA\pwsh_init.date"
+$today = (Get-Date).ToString("yyyy-MM-dd")
+$lastDate = if (Test-Path $dateFile) { Get-Content $dateFile } else { "" }
+
+if ($lastDate -ne $today) {
+    $flagFile = "$env:LOCALAPPDATA\pwsh_init.hash"
+    $gitHash = git -C $PSScriptRoot log -1 --format=%H -- init.ps1 2>$null
+    $lastHash = if (Test-Path $flagFile) { Get-Content $flagFile } else { "" }
+    if ($gitHash -and $gitHash -ne $lastHash) {
+        Initialize-Environment
+        Set-Content $flagFile $gitHash
+    }
+    Set-Content $dateFile $today
+}
+
