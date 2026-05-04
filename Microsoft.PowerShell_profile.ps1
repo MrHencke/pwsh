@@ -17,6 +17,7 @@ if (-not (Test-Path $cache)) { New-Item $cache -ItemType Directory | Out-Null }
 
 $tools = @(
     @{ Name = "starship"; Cache = "starship.ps1"; LoadOrder = 1; Init = { starship init powershell --print-full-init | Out-String } }
+    @{ Name = "fnm"; LoadOrder = 2; Init = { fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression } }
     @{ Name = "fnm"; Cache = "completions_fnm.ps1"; LoadOrder = 3; Init = { fnm completions --shell powershell | Out-String } }
     @{ Name = "dotnet"; Cache = "completions_dotnet.ps1"; LoadOrder = 3; Init = { $env:DOTNET_NOLOGO = 1; dotnet completions script pwsh | Out-String } }
     @{ Name = "kubectl"; Cache = "completions_kubectl.ps1"; LoadOrder = 3; Init = { kubectl completion powershell | Out-String } }
@@ -27,12 +28,8 @@ $tools = @(
 
 foreach ($tool in ($tools | Sort-Object LoadOrder)) {
     $bin = (Get-Command $tool.Name -ErrorAction SilentlyContinue).Source
-    if ($bin) { Use-Cache "$cache\$($tool.Cache)" @($bin) $tool.Init }
-}
-
-# Run fnm env on every startup (no caching) to ensure environment changes are reflected
-if (Get-Command fnm -ErrorAction SilentlyContinue) {
-    fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+    if ($bin -and $null -ne $tool.Cache) { Use-Cache "$cache\$($tool.Cache)" @($bin) $tool.Init }
+    else { & $tool.Init }
 }
 
 Import-Module CompletionPredictor
