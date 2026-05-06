@@ -10,6 +10,7 @@ $script:WingetPackages = @(
     "aristocratos.btop4win"
     "JesseDuffield.Lazydocker"
     "Rustlang.Rustup"
+    "Headlamp.Headlamp"
 )
 $script:DotnetVersions = @(
     "8" 
