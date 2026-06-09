@@ -16,18 +16,18 @@ $cache = "$PSScriptRoot\cache"
 if (-not (Test-Path $cache)) { New-Item $cache -ItemType Directory | Out-Null }
 
 $tools = @(
-    @{ Name = "starship"; Cache = "starship.ps1"; LoadOrder = 1; Init = { starship init powershell --print-full-init | Out-String } }
-    @{ Name = "fnm"; LoadOrder = 2; Init = { fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression } }
-    @{ Name = "fnm"; Cache = "completions_fnm.ps1"; LoadOrder = 3; Init = { fnm completions --shell powershell | Out-String } }
-    @{ Name = "dotnet"; Cache = "completions_dotnet.ps1"; LoadOrder = 3; Init = { $env:DOTNET_NOLOGO = 1; dotnet completions script pwsh | Out-String } }
-    @{ Name = "kubectl"; Cache = "completions_kubectl.ps1"; LoadOrder = 3; Init = { kubectl completion powershell | Out-String } }
-    @{ Name = "k9s"; Cache = "completions_k9s.ps1"; LoadOrder = 3; Init = { k9s completion powershell | Out-String } }
-    @{ Name = "rustup"; Cache = "completions_rustup.ps1"; LoadOrder = 3; Init = { rustup completions powershell | Out-String } }
-    @{ Name = "zoxide"; Cache = "zoxide.ps1"; LoadOrder = 4; Init = { zoxide init --cmd cd powershell | Out-String } }
+    @{ Bin = "starship"; Cache = "starship.ps1"; LoadOrder = 1; Init = { starship init powershell --print-full-init | Out-String } }
+    @{ Bin = "fnm"; LoadOrder = 2; Init = { fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression } }
+    @{ Bin = "fnm"; Cache = "completions_fnm.ps1"; LoadOrder = 3; Init = { fnm completions --shell powershell | Out-String } }
+    @{ Bin = "dotnet"; Cache = "completions_dotnet.ps1"; LoadOrder = 3; Init = { $env:DOTNET_NOLOGO = 1; dotnet completions script pwsh | Out-String } }
+    @{ Bin = "kubectl"; Cache = "completions_kubectl.ps1"; LoadOrder = 3; Init = { kubectl completion powershell | Out-String } }
+    @{ Bin = "k9s"; Cache = "completions_k9s.ps1"; LoadOrder = 3; Init = { k9s completion powershell | Out-String } }
+    @{ Bin = "rustup"; Cache = "completions_rustup.ps1"; LoadOrder = 3; Init = { rustup completions powershell | Out-String } }
+    @{ Bin = "zoxide"; Cache = "zoxide.ps1"; LoadOrder = 4; Init = { zoxide init --cmd cd powershell | Out-String } }
 )
 
 foreach ($tool in ($tools | Sort-Object LoadOrder)) {
-    $bin = (Get-Command $tool.Name -ErrorAction SilentlyContinue).Source
+    $bin = (Get-Command $tool.Bin -ErrorAction SilentlyContinue).Source
     if ($bin -and $null -ne $tool.Cache) { Use-Cache "$cache\$($tool.Cache)" @($bin) $tool.Init }
     else { & $tool.Init }
 }
