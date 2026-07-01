@@ -1,5 +1,14 @@
 # Custom utility funcs
 
+function docker-nuke {
+    $ids = docker ps -aq
+    if (-not $ids) {
+        Write-Output "No containers to remove."
+        return
+    }
+    docker rm -f $ids
+}
+
 function localpack {
     <#
     .SYNOPSIS
