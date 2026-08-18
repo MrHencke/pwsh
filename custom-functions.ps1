@@ -195,6 +195,52 @@ function localpack-children {
     } -ThrottleLimit 4
 }
 
+function killport {
+    <#
+    .SYNOPSIS
+        Finds and optionally kills the process listening on a given port.
+
+    .DESCRIPTION
+        Looks up which process is listening on the specified TCP port, displays its
+        name and PID, and prompts for confirmation before terminating it.
+
+    .PARAMETER Port
+        The TCP port to look up.
+
+    .EXAMPLE
+        killport 3000
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port
+    )
+
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $connections) {
+        Write-Output "No process is listening on port $Port."
+        return
+    }
+
+    $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
+
+    foreach ($processId in $pids) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if (-not $process) {
+            continue
+        }
+
+        Write-Output "Port $Port is used by: $($process.ProcessName) (PID $processId)"
+        $answer = Read-Host "Kill this process? (y/n)"
+        if ($answer -eq 'y') {
+            Stop-Process -Id $processId -Force
+            Write-Output "Killed PID $processId."
+        }
+        else {
+            Write-Output "Skipped PID $processId."
+        }
+    }
+}
+
 function which {
     <#
     .SYNOPSIS
