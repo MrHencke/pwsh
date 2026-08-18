@@ -1064,3 +1064,78 @@ function Register-CronJob {
         return $null
     }
 }
+
+function tf {
+    <#
+    .SYNOPSIS
+        Runs terraform init/plan/apply against a per-environment tfvars folder.
+
+    .DESCRIPTION
+        Wraps terraform so environments (dev, prod, etc.) each live in their own
+        subfolder containing backend.tfvars and env.tfvars. Before plan/apply,
+        verifies the working directory was last initialized against the same
+        environment's backend, and re-initializes automatically if not.
+
+    .PARAMETER Action
+        The terraform action to run: init, plan, or apply.
+
+    .PARAMETER Env
+        The environment folder to use, e.g. dev or prod.
+
+    .PARAMETER ExtraArgs
+        Any additional arguments passed straight through to terraform.
+
+    .EXAMPLE
+        tf init prod
+
+    .EXAMPLE
+        tf plan dev
+
+    .EXAMPLE
+        tf apply prod -auto-approve
+    #>
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateSet('init', 'plan', 'apply')]
+        [string]$Action,
+
+        [Parameter(Mandatory = $true, Position = 1)]
+        [ValidateSet('internal', 'dev', 'prod', 'local', 'legacy')]
+        [string]$Env,
+
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$ExtraArgs
+    )
+
+    $envMarkerPath = ".terraform/tf-env.txt"
+
+    function Invoke-TfInit {
+        terraform init -reconfigure -backend-config "$Env/backend.tfvars" @ExtraArgs
+        if ($LASTEXITCODE -eq 0) {
+            New-Item -ItemType Directory -Path ".terraform" -Force | Out-Null
+            Set-Content -Path $envMarkerPath -Value $Env
+        }
+    }
+
+    switch ($Action) {
+        'init' {
+            Invoke-TfInit
+        }
+        'plan' {
+            $currentEnv = if (Test-Path $envMarkerPath) { (Get-Content $envMarkerPath -Raw).Trim() } else { $null }
+            if ($currentEnv -ne $Env) {
+                Write-Output "Initialized environment is '$currentEnv', switching to '$Env'..."
+                Invoke-TfInit
+            }
+            terraform plan -var-file "$Env/env.tfvars" @ExtraArgs
+        }
+        'apply' {
+            $currentEnv = if (Test-Path $envMarkerPath) { (Get-Content $envMarkerPath -Raw).Trim() } else { $null }
+            if ($currentEnv -ne $Env) {
+                Write-Output "Initialized environment is '$currentEnv', switching to '$Env'..."
+                Invoke-TfInit
+            }
+            terraform apply -var-file "$Env/env.tfvars" @ExtraArgs
+        }
+    }
+}
