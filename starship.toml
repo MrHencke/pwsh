@@ -29,6 +29,12 @@ style = "bold purple"
 format = "[$user]($style) on "
 style_user = "bold cyan"
 
+[time]
+disabled = false
+format = "[$time]($style) "
+style = "bold blue"
+time_format = "%H:%M"
+
 [palettes.catppuccin_mocha]
 
 rosewater = "#f5e0dc"

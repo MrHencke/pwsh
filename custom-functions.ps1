@@ -1139,3 +1139,95 @@ function tf {
         }
     }
 }
+
+function Send-ClipboardAsFile {
+    <#
+    .SYNOPSIS
+        Converts clipboard text into a file and sets that file as the clipboard content.
+
+    .DESCRIPTION
+        Takes the current text on the clipboard, writes it to a file in the temp directory,
+        then replaces the clipboard content with that file (as a file-drop item). Pasting
+        afterwards (e.g. into Slack) will attach the file instead of pasting raw text.
+        Alias: 'clip2file'.
+
+    .PARAMETER FileName
+        Base name for the generated file (without extension). Default: "clipboard".
+
+    .PARAMETER Extension
+        File extension to use. Default: "txt".
+
+    .EXAMPLE
+        clip2file
+
+    .EXAMPLE
+        clip2file -FileName "error-log" -Extension "log"
+    #>
+    param(
+        [string]$FileName = "clipboard",
+        [string]$Extension = "txt"
+    )
+
+    $content = Get-Clipboard -Raw
+    if (-not $content) {
+        Write-Error "Clipboard is empty or does not contain text."
+        return
+    }
+
+    $path = Join-Path $env:TEMP "$FileName.$Extension"
+    Set-Content -Path $path -Value $content -NoNewline
+
+    Set-Clipboard -Path $path
+    Write-Output "Saved clipboard text to $path and set it as the clipboard file."
+}
+
+Set-Alias -Name 'clip2file' -Value 'Send-ClipboardAsFile'
+
+function Restart-FrameServer {
+    <#
+    .SYNOPSIS
+        Restarts the Windows Camera Frame Server (FrameServer) service.
+
+    .DESCRIPTION
+        Force-restarts FrameServer by killing its host process, since the service's graceful
+        stop handler can hang indefinitely waiting for camera clients (e.g. Windows Hello) to
+        release it. Self-elevates via UAC if not already running as Administrator. Refuses to
+        kill the process if another service shares it, to avoid collateral damage.
+
+    .PARAMETER Pause
+        Waits for a keypress before returning. Used internally when relaunched in an elevated
+        window so errors remain visible instead of the window closing immediately.
+
+    .EXAMPLE
+        Restart-FrameServer
+    #>
+    param([switch]$Pause)
+
+    $svc = "FrameServer"
+
+    try {
+        if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            $customFunctionsPath = (Join-Path (Split-Path $PROFILE -Parent) "custom-functions.ps1")
+            Start-Process pwsh -Verb RunAs -ArgumentList "-NoProfile -Command `". '$customFunctionsPath'; Restart-FrameServer -Pause`"" -ErrorAction Stop
+            return
+        }
+
+        if ((Get-Service $svc -ErrorAction Stop).Status -ne 'Stopped') {
+            $svcPid = (Get-CimInstance Win32_Service -Filter "Name='$svc'").ProcessId
+            if (Get-CimInstance Win32_Service -Filter "ProcessId=$svcPid" | Where-Object Name -ne $svc) {
+                throw "PID $svcPid is shared with another service - refusing to kill."
+            }
+            Stop-Process -Id $svcPid -Force -ErrorAction Stop
+            Start-Sleep -Seconds 2
+        }
+
+        Start-Service $svc -ErrorAction SilentlyContinue
+        Write-Host "${svc}: $((Get-Service $svc).Status)"
+    }
+    catch {
+        Write-Host "ERROR: $_" -ForegroundColor Red
+    }
+    finally {
+        if ($Pause) { Read-Host "`nPress Enter to close" }
+    }
+}
