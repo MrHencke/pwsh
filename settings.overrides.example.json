@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy this file to settings.overrides.json (gitignored) to override values from settings.json locally. Only include the keys you want to change - each top-level section is merged one level deep, and any array you specify here fully replaces the baseline array for that key.",
+  "general": {
+    "checkIntervalDays": 7
+  },
+  "install": {
+    "wingetPackages": ["ajeetdsouza.zoxide", "Starship.Starship"]
+  }
+}

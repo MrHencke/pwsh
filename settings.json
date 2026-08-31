@@ -1,0 +1,27 @@
+{
+  "general": {
+    "enabled": true,
+    "checkIntervalDays": 1
+  },
+  "install": {
+    "wingetPackages": [
+      "ajeetdsouza.zoxide",
+      "Starship.Starship",
+      "Schniz.fnm",
+      "gerardog.gsudo",
+      "junegunn.fzf",
+      "Derailed.k9s",
+      "Neovim.Neovim",
+      "Git.Git",
+      "aristocratos.btop4win",
+      "JesseDuffield.Lazydocker",
+      "Rustlang.Rustup",
+      "Headlamp.Headlamp"
+    ],
+    "dotnetVersions": ["8", "9", "10", "Preview"],
+    "powershellModules": ["PSFzf", "CompletionPredictor", "Microsoft.WinGet.CommandNotFound"]
+  },
+  "starship": {
+    "autoSymlink": true
+  }
+}

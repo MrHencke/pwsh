@@ -1,28 +1,22 @@
-$script:WingetPackages = @(
-    "ajeetdsouza.zoxide"
-    "Starship.Starship"
-    "Schniz.fnm"
-    "gerardog.gsudo"
-    "junegunn.fzf"
-    "Derailed.k9s"
-    "Neovim.Neovim"
-    "Git.Git"
-    "aristocratos.btop4win"
-    "JesseDuffield.Lazydocker"
-    "Rustlang.Rustup"
-    "Headlamp.Headlamp"
-)
-$script:DotnetVersions = @(
-    "8" 
-    "9" 
-    "10" 
-    "Preview"
-)
-$script:PsModules = @(
-    "PSFzf"
-    "CompletionPredictor"
-    "Microsoft.WinGet.CommandNotFound"
-)
+function Get-ProfileSettings {
+    $settingsPath = "$PSScriptRoot\settings.json"
+    $overridesPath = "$PSScriptRoot\settings.overrides.json"
+
+    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json -AsHashtable
+
+    if (Test-Path $overridesPath) {
+        $overrides = Get-Content $overridesPath -Raw | ConvertFrom-Json -AsHashtable
+        foreach ($section in $overrides.Keys) {
+            if ($section -eq '_comment') { continue }
+            if (-not $settings.ContainsKey($section)) { $settings[$section] = @{} }
+            foreach ($key in $overrides[$section].Keys) {
+                $settings[$section][$key] = $overrides[$section][$key]
+            }
+        }
+    }
+
+    return $settings
+}
 
 function Install-WingetPackage {
     param([Parameter(Mandatory)][string]$PackageId)
@@ -57,42 +51,47 @@ function Set-StarshipConfig {
 }
 
 function Initialize-Environment {
+    param($Settings = $script:ProfileSettings)
     Write-Host "`n--- Initializing Packages ---`n"
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Error "winget is not available."
         return
     }
-    foreach ($pkg in $script:WingetPackages) { Install-WingetPackage $pkg }
-    foreach ($v in $script:DotnetVersions) { Install-WingetPackage "Microsoft.DotNet.SDK.$v" }
-    foreach ($mod in $script:PsModules) { Install-RequiredModule $mod }
-    Set-StarshipConfig
+    foreach ($pkg in $Settings.install.wingetPackages) { Install-WingetPackage $pkg }
+    foreach ($v in $Settings.install.dotnetVersions) { Install-WingetPackage "Microsoft.DotNet.SDK.$v" }
+    foreach ($mod in $Settings.install.powershellModules) { Install-RequiredModule $mod }
+    if ($Settings.starship.autoSymlink) { Set-StarshipConfig }
     Write-Host "`nInitialization complete.`n"
 }
 
 function Update-Environment {
+    param($Settings = $script:ProfileSettings)
     Write-Host "`n--- Updating Packages ---`n"
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Error "winget is not available."
         return
     }
-    foreach ($pkg in $script:WingetPackages) { winget upgrade --id $pkg -e --accept-source-agreements --accept-package-agreements }
-    foreach ($v in $script:DotnetVersions) { winget upgrade --id "Microsoft.DotNet.SDK.$v" -e --accept-source-agreements --accept-package-agreements }
-    foreach ($mod in $script:PsModules) { Update-Module $mod -Force -ErrorAction SilentlyContinue }
+    foreach ($pkg in $Settings.install.wingetPackages) { winget upgrade --id $pkg -e --accept-source-agreements --accept-package-agreements }
+    foreach ($v in $Settings.install.dotnetVersions) { winget upgrade --id "Microsoft.DotNet.SDK.$v" -e --accept-source-agreements --accept-package-agreements }
+    foreach ($mod in $Settings.install.powershellModules) { Update-Module $mod -Force -ErrorAction SilentlyContinue }
     Write-Host "`nUpdate complete.`n"
 }
 
-$dateFile = "$env:LOCALAPPDATA\pwsh_init.date"
-$today = (Get-Date).ToString("yyyy-MM-dd")
-$lastDate = if (Test-Path $dateFile) { Get-Content $dateFile } else { "" }
+$script:ProfileSettings = Get-ProfileSettings
 
-if ($lastDate -ne $today) {
-    $flagFile = "$env:LOCALAPPDATA\pwsh_init.hash"
-    $gitHash = git -C $PSScriptRoot log -1 --format=%H -- init.ps1 2>$null
-    $lastHash = if (Test-Path $flagFile) { Get-Content $flagFile } else { "" }
-    if ($gitHash -and $gitHash -ne $lastHash) {
-        Initialize-Environment
-        Set-Content $flagFile $gitHash
+if ($script:ProfileSettings.general.enabled) {
+    $lastRunFile = "$env:LOCALAPPDATA\pwsh_init.lastrun"
+    $lastRun = if (Test-Path $lastRunFile) { [datetime](Get-Content $lastRunFile) } else { [datetime]::MinValue }
+    $daysSince = ((Get-Date) - $lastRun).TotalDays
+
+    if ($daysSince -ge $script:ProfileSettings.general.checkIntervalDays) {
+        $flagFile = "$env:LOCALAPPDATA\pwsh_init.hash"
+        $gitHash = git -C $PSScriptRoot log -1 --format=%H -- init.ps1 2>$null
+        $lastHash = if (Test-Path $flagFile) { Get-Content $flagFile } else { "" }
+        if ($gitHash -and $gitHash -ne $lastHash) {
+            Initialize-Environment
+            Set-Content $flagFile $gitHash
+        }
+        Set-Content $lastRunFile (Get-Date).ToString("o")
     }
-    Set-Content $dateFile $today
 }
-
