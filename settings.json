@@ -16,7 +16,8 @@
       "aristocratos.btop4win",
       "JesseDuffield.Lazydocker",
       "Rustlang.Rustup",
-      "Headlamp.Headlamp"
+      "Headlamp.Headlamp",
+      "Bruno.Bruno"
     ],
     "dotnetVersions": ["8", "9", "10", "Preview"],
     "powershellModules": ["PSFzf", "CompletionPredictor", "Microsoft.WinGet.CommandNotFound"]
