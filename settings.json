@@ -17,7 +17,8 @@
       "JesseDuffield.Lazydocker",
       "Rustlang.Rustup",
       "Headlamp.Headlamp",
-      "Bruno.Bruno"
+      "Bruno.Bruno",
+      "BurntSushi.ripgrep.MSVC"
     ],
     "dotnetVersions": ["8", "9", "10", "Preview"],
     "powershellModules": ["PSFzf", "CompletionPredictor", "Microsoft.WinGet.CommandNotFound"]

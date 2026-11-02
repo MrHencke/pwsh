@@ -22,6 +22,8 @@ $tools = @(
     @{ Bin = "dotnet"; Cache = "completions_dotnet.ps1"; LoadOrder = 3; Init = { $env:DOTNET_NOLOGO = 1; dotnet completions script pwsh | Out-String } }
     @{ Bin = "kubectl"; Cache = "completions_kubectl.ps1"; LoadOrder = 3; Init = { kubectl completion powershell | Out-String } }
     @{ Bin = "k9s"; Cache = "completions_k9s.ps1"; LoadOrder = 3; Init = { k9s completion powershell | Out-String } }
+    @{ Bin = "rg"; Cache = "completions_rg.ps1"; LoadOrder = 3; Init = { rg --generate complete-powershell | Out-String } }
+    @{ Bin = "sofka"; Cache = "completions_sofka.ps1"; LoadOrder = 3; Init = { sofka completion powershell | Out-String } }
     @{ Bin = "rustup"; Cache = "completions_rustup.ps1"; LoadOrder = 3; Init = { rustup completions powershell | Out-String } }
     @{ Bin = "zoxide"; Cache = "zoxide.ps1"; LoadOrder = 4; Init = { zoxide init --cmd cd powershell | Out-String } }
 )
