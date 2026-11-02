@@ -25,5 +25,17 @@
   },
   "starship": {
     "autoSymlink": true
+  },
+  "tools": {
+    "starship":            { "bin": "starship", "order": 1, "cache": "starship.ps1",            "init": "starship init powershell --print-full-init | Out-String" },
+    "fnm":                 { "bin": "fnm",      "order": 2,                                      "init": "fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression" },
+    "fnm-completions":     { "bin": "fnm",      "order": 3, "cache": "completions_fnm.ps1",     "init": "fnm completions --shell powershell | Out-String" },
+    "dotnet-completions":  { "bin": "dotnet",   "order": 3, "cache": "completions_dotnet.ps1",  "init": "$env:DOTNET_NOLOGO = 1; dotnet completions script pwsh | Out-String" },
+    "kubectl-completions": { "bin": "kubectl",  "order": 3, "cache": "completions_kubectl.ps1", "init": "kubectl completion powershell | Out-String" },
+    "k9s-completions":     { "bin": "k9s",      "order": 3, "cache": "completions_k9s.ps1",     "init": "k9s completion powershell | Out-String" },
+    "rg-completions":      { "bin": "rg",       "order": 3, "cache": "completions_rg.ps1",      "init": "rg --generate complete-powershell | Out-String" },
+    "sofka-completions":   { "bin": "sofka",    "order": 3, "cache": "completions_sofka.ps1",   "init": "sofka completion powershell | Out-String" },
+    "rustup-completions":  { "bin": "rustup",   "order": 3, "cache": "completions_rustup.ps1",  "init": "rustup completions powershell | Out-String" },
+    "zoxide":              { "bin": "zoxide",   "order": 4, "cache": "zoxide.ps1",              "init": "zoxide init --cmd cd powershell | Out-String" }
   }
 }
